@@ -1,0 +1,98 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: blogin-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 123123
+      MYSQL_DATABASE: ${DATABASE_NAME}
+      MYSQL_USER: ${DATABASE_USER}
+      MYSQL_PASSWORD: ${DATABASE_PWD}
+      TZ: Asia/Shanghai
+      LANG: C.UTF-8
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/services/blogin/database:/var/lib/mysql
+    networks:
+      - blogin-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      # start_period: 30s
+  
+  redis:
+    image: redis:7-alpine
+    container_name: blogin-redis
+    ports:
+      - "6379:6379"
+    environment:
+      TZ: Asia/Shanghai
+      LANG: C.utf8
+    networks:
+      - blogin-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      # start_period: 30s
+
+  blogin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blogin
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+      - redis
+      - sentiment-model
+    networks:
+      - blogin-network
+    environment:
+      - REDIS_HOST=blogin-redis
+      - REDIS_PORT=6379
+      - SENTIMENT_SERVICE_URL=http://sentiment-model:9000/api/predict
+    volumes:
+      - .:/app
+      - ./data/services/blogin/logs:/var/logs
+
+  sentiment-model:
+    build:
+      context: ./model
+      dockerfile: Dockerfile
+    container_name: blogin-sentiment-model
+    ports:
+      - "9000:9000"
+    environment:
+      - MODEL_TYPE=${MODEL_TYPE:-bilstm}
+      - MODEL_ARTIFACTS_DIR=/app/artifacts
+      - TORCH_DEVICE=cpu
+    networks:
+      - blogin-network
+    volumes:
+      - ./model/artifacts:/app/artifacts:ro
+
+  frontend:
+    image: node:20-alpine
+    container_name: blogin-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - blogin
+    networks:
+      - blogin-network
+    volumes:
+      - ./frontend:/app
+      - blogin_frontend_node_modules:/app/node_modules
+
+networks:
+  blogin-network:
+
+volumes:
+  blogin_frontend_node_modules:

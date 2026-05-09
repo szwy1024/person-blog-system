@@ -1,0 +1,10 @@
+Flask==3.0.3
+gunicorn==22.0.0
+jieba==0.42.1
+joblib==1.4.2
+numpy==1.26.4
+scikit-learn==1.5.1
+torch==2.3.1
+
+# 只有 MODEL_TYPE=bert 时需要。镜像默认不安装它，避免体积过大。
+# transformers==4.44.2
