@@ -8,12 +8,9 @@
 .
 ├── server/              # Flask API 后端
 ├── frontend/            # Vue + Vite 前端
+├── model/               # 情感分析模型推理服务
 ├── data/                # MySQL 数据卷与运行日志目录
-├── Dockerfile           # 后端镜像
-├── docker-compose.yml   # MySQL、Redis、Flask、Vite 编排
-├── gunicorn_conf.py     # Gunicorn 配置
-├── requirements.txt     # 后端 Python 依赖
-└── wsgi.py              # Flask WSGI 入口
+└── docker-compose.yml   # MySQL、Redis、Flask、模型服务、Vite 编排
 ```
 
 ## 启动
@@ -37,8 +34,8 @@ http://127.0.0.1:8000/api/health
 ## 初始化
 
 ```bash
-docker exec -e FLASK_APP=wsgi:app blogin flask initdb
-docker exec -e FLASK_APP=wsgi:app blogin flask admin
+docker exec -e FLASK_APP=server.wsgi:app blogin flask initdb
+docker exec -e FLASK_APP=server.wsgi:app blogin flask admin
 ```
 
 站点信息、管理员账号和情感分析服务地址均在 `.env` 中配置。

@@ -42,8 +42,10 @@ services:
   blogin:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: server/Dockerfile
     container_name: blogin
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     depends_on:
@@ -57,7 +59,7 @@ services:
       - REDIS_PORT=6379
       - SENTIMENT_SERVICE_URL=http://sentiment-model:9000/api/predict
     volumes:
-      - .:/app
+      - ./server:/app/server
       - ./data/services/blogin/logs:/var/logs
 
   sentiment-model:
