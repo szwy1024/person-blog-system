@@ -29,6 +29,19 @@ function showError(error) {
   setTimeout(() => { message.value = '' }, 2600)
 }
 
+function openAuth(mode = 'login') {
+  auth.mode = mode
+  auth.account = ''
+  auth.username = ''
+  auth.email = ''
+  auth.password = ''
+  page.value = 'auth'
+}
+
+function switchAuthMode() {
+  openAuth(auth.mode === 'login' ? 'register' : 'login')
+}
+
 async function loadSite() {
   site.value = await api.site()
   document.title = site.value.name || 'Blogin'
@@ -124,8 +137,27 @@ function sentimentText(label) {
   return { positive: '正面', neutral: '中性', negative: '负面' }[label] || '未知'
 }
 
+function consumeOAuthMessage() {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('oauth') !== 'github') return
+
+  const status = params.get('status')
+  const messages = {
+    success: 'GitHub 登录成功',
+    disabled: 'GitHub 登录尚未配置',
+    state_error: 'GitHub 登录状态校验失败，请重试',
+    token_error: 'GitHub 授权令牌获取失败',
+    email_required: 'GitHub 账号没有可读取的邮箱，请公开或验证邮箱后重试',
+    request_error: 'GitHub 登录请求失败，请稍后重试'
+  }
+  message.value = messages[status] || 'GitHub 登录失败，请重试'
+  window.history.replaceState({}, '', window.location.pathname)
+  setTimeout(() => { message.value = '' }, 3000)
+}
+
 onMounted(async () => {
   await Promise.all([loadSite(), loadMe(), loadCategories()])
+  consumeOAuthMessage()
   await loadBlogs()
 })
 </script>
@@ -141,9 +173,11 @@ onMounted(async () => {
       <nav>
         <button @click="page = 'home'">文章</button>
         <button v-if="isAdmin" @click="openAdmin">管理</button>
-        <a v-if="site.github?.url" :href="site.github.url" target="_blank"><Github :size="18" /></a>
+        <a v-if="site.github?.url" class="nav-icon-button" :href="site.github.url" target="_blank" aria-label="GitHub">
+          <Github :size="18" />
+        </a>
         <button v-if="user" class="icon-text" @click="logout"><LogOut :size="17" />退出</button>
-        <button v-else class="icon-text hot" @click="page = 'auth'"><LogIn :size="17" />登录</button>
+        <button v-else class="icon-text hot" @click="openAuth('login')"><LogIn :size="17" />登录</button>
       </nav>
     </header>
 
@@ -156,7 +190,7 @@ onMounted(async () => {
           <h1>{{ site.heroTitle }}</h1>
           <p>{{ site.heroText }}</p>
           <div class="hero-actions">
-            <button class="primary" @click="page = user ? 'home' : 'auth'">
+            <button class="primary" @click="user ? page = 'home' : openAuth('login')">
               <UserRound :size="18" />{{ user ? user.username : '进入讨论' }}
             </button>
             <a class="ghost" :href="`mailto:${site.email}`"><Mail :size="18" />联系站长</a>
@@ -245,12 +279,24 @@ onMounted(async () => {
     <main v-if="page === 'auth'" class="auth-page">
       <section class="auth-card">
         <h1>{{ auth.mode === 'login' ? '欢迎回来' : '创建账号' }}</h1>
-        <input v-if="auth.mode === 'register'" v-model="auth.username" placeholder="用户名" />
-        <input v-if="auth.mode === 'register'" v-model="auth.email" placeholder="邮箱" />
-        <input v-if="auth.mode === 'login'" v-model="auth.account" placeholder="邮箱或用户名" />
-        <input v-model="auth.password" type="password" placeholder="密码" @keyup.enter="submitAuth" />
+        <input v-if="auth.mode === 'register'" v-model="auth.username" autocomplete="username" placeholder="用户名" />
+        <input v-if="auth.mode === 'register'" v-model="auth.email" autocomplete="email" placeholder="邮箱" />
+        <input v-if="auth.mode === 'login'" v-model="auth.account" autocomplete="username" placeholder="邮箱或用户名" />
+        <input
+          :key="auth.mode"
+          v-model="auth.password"
+          type="password"
+          :autocomplete="auth.mode === 'register' ? 'new-password' : 'current-password'"
+          placeholder="密码"
+          @keyup.enter="submitAuth"
+        />
         <button class="primary" @click="submitAuth">{{ auth.mode === 'login' ? '登录' : '注册' }}</button>
-        <button class="link" @click="auth.mode = auth.mode === 'login' ? 'register' : 'login'">
+        <div v-if="site.auth?.github" class="oauth-divider"><span>或</span></div>
+        <a v-if="site.auth?.github" class="github-login" href="/api/auth/github/login">
+          <Github :size="18" />
+          使用 GitHub 登录
+        </a>
+        <button class="link" @click="switchAuthMode">
           {{ auth.mode === 'login' ? '没有账号？去注册' : '已有账号？去登录' }}
         </button>
       </section>

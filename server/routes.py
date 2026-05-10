@@ -1,6 +1,9 @@
+import secrets
 from datetime import datetime
+from urllib.parse import urlencode
 
-from flask import Blueprint, current_app, jsonify, request, session
+import requests
+from flask import Blueprint, current_app, jsonify, redirect, request, session
 from sqlalchemy import or_
 
 from server.extensions import db
@@ -46,6 +49,54 @@ def admin_required():
     return user, None
 
 
+def github_oauth_enabled():
+    return bool(current_app.config.get('GITHUB_CLIENT_ID') and current_app.config.get('GITHUB_CLIENT_SECRET'))
+
+
+def frontend_redirect(**params):
+    url = current_app.config.get('FRONTEND_URL') or current_app.config.get('SITE_URL') or '/'
+    if params:
+        separator = '&' if '?' in url else '?'
+        url = '{}{}{}'.format(url, separator, urlencode(params))
+    return redirect(url)
+
+
+def github_headers(access_token):
+    return {
+        'Authorization': 'token {}'.format(access_token),
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': current_app.config.get('SITE_NAME') or 'Blogin'
+    }
+
+
+def get_github_email(access_token, fallback):
+    if fallback:
+        return fallback
+    response = requests.get(
+        'https://api.github.com/user/emails',
+        headers=github_headers(access_token),
+        timeout=8
+    )
+    response.raise_for_status()
+    emails = response.json() or []
+    verified = [item for item in emails if item.get('email') and item.get('verified')]
+    primary = next((item for item in verified if item.get('primary')), None)
+    selected = primary or (verified[0] if verified else None)
+    return selected.get('email') if selected else ''
+
+
+def unique_username(seed):
+    base = ''.join(ch if ch.isalnum() or ch in ['_', '-'] else '_' for ch in (seed or 'github_user')).strip('_')
+    base = (base or 'github_user')[:32]
+    candidate = base
+    index = 1
+    while User.query.filter_by(username=candidate).first() is not None:
+        suffix = '_{}'.format(index)
+        candidate = '{}{}'.format(base[:40 - len(suffix)], suffix)
+        index += 1
+    return candidate
+
+
 @api.route('/health')
 def api_health():
     return ok({'status': 'ok'})
@@ -75,6 +126,9 @@ def site():
             'owner': github_owner,
             'repo': github_repo,
             'url': github_url
+        },
+        'auth': {
+            'github': github_oauth_enabled()
         }
     })
 
@@ -108,6 +162,102 @@ def login():
 def logout():
     session.clear()
     return ok()
+
+
+@api.route('/auth/github/login')
+def github_login():
+    if not github_oauth_enabled():
+        return fail('GitHub 登录尚未配置', 503)
+
+    state = secrets.token_urlsafe(24)
+    session['github_oauth_state'] = state
+    params = {
+        'client_id': current_app.config['GITHUB_CLIENT_ID'],
+        'redirect_uri': current_app.config['GITHUB_REDIRECT_URI'],
+        'scope': current_app.config['GITHUB_OAUTH_SCOPE'],
+        'state': state,
+        'allow_signup': 'true'
+    }
+    return redirect('https://github.com/login/oauth/authorize?{}'.format(urlencode(params)))
+
+
+@api.route('/auth/github/callback')
+def github_callback():
+    if not github_oauth_enabled():
+        return frontend_redirect(oauth='github', status='disabled')
+
+    code = request.args.get('code')
+    state = request.args.get('state')
+    expected_state = session.pop('github_oauth_state', None)
+    if not code or not state or state != expected_state:
+        return frontend_redirect(oauth='github', status='state_error')
+
+    try:
+        token_response = requests.post(
+            'https://github.com/login/oauth/access_token',
+            data={
+                'client_id': current_app.config['GITHUB_CLIENT_ID'],
+                'client_secret': current_app.config['GITHUB_CLIENT_SECRET'],
+                'code': code,
+                'redirect_uri': current_app.config['GITHUB_REDIRECT_URI'],
+                'state': state
+            },
+            headers={'Accept': 'application/json'},
+            timeout=8
+        )
+        token_response.raise_for_status()
+        access_token = (token_response.json() or {}).get('access_token')
+        if not access_token:
+            return frontend_redirect(oauth='github', status='token_error')
+
+        profile_response = requests.get(
+            'https://api.github.com/user',
+            headers=github_headers(access_token),
+            timeout=8
+        )
+        profile_response.raise_for_status()
+        profile = profile_response.json() or {}
+
+        email = get_github_email(access_token, profile.get('email'))
+        if not email:
+            return frontend_redirect(oauth='github', status='email_required')
+
+        user = User.query.filter_by(email=email).first()
+        if user is None:
+            third_party = ThirdParty.query.filter_by(name='github').first()
+            if third_party is None:
+                third_party = ThirdParty(name='github')
+                db.session.add(third_party)
+                db.session.flush()
+
+            user = User(
+                username=unique_username(profile.get('login') or email.split('@')[0]),
+                email=email,
+                website=profile.get('html_url') or '',
+                avatar=profile.get('avatar_url') or '',
+                slogan=profile.get('bio') or '',
+                role_id=2,
+                confirm=1,
+                reg_way=third_party.id
+            )
+            user.set_password(secrets.token_urlsafe(32))
+            db.session.add(user)
+        else:
+            if profile.get('avatar_url'):
+                user.avatar = profile.get('avatar_url')
+            if profile.get('html_url') and not user.website:
+                user.website = profile.get('html_url')
+            if profile.get('bio') and not user.slogan:
+                user.slogan = profile.get('bio')
+
+        user.recent_login = datetime.now()
+        db.session.commit()
+        session.permanent = True
+        session['user_id'] = user.id
+        return frontend_redirect(oauth='github', status='success')
+    except requests.RequestException:
+        current_app.logger.exception('GitHub OAuth request failed')
+        return frontend_redirect(oauth='github', status='request_error')
 
 
 @api.route('/auth/register', methods=['POST'])

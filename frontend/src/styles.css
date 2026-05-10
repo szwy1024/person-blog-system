@@ -43,7 +43,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   backdrop-filter: blur(18px);
 }
 
-.brand, nav, .icon-text, .hero-actions, .toolbar, .back, .comment-head, .sentiment, .section-title, .switch-row {
+.brand, nav, .icon-text, .hero-actions, .toolbar, .back, .comment-head, .sentiment, .section-title, .switch-row, .github-login {
   display: flex;
   align-items: center;
 }
@@ -59,7 +59,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 nav { gap: 10px; }
-button, .ghost {
+button, .ghost, .nav-icon-button, .github-login {
   border: 1px solid rgba(255,255,255,.16);
   color: #eff6ff;
   background: rgba(255,255,255,.08);
@@ -69,7 +69,15 @@ button, .ghost {
   text-decoration: none;
   transition: .18s ease;
 }
-button:hover, .ghost:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.34); }
+button:hover, .ghost:hover, .nav-icon-button:hover, .github-login:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.34); }
+.nav-icon-button {
+  width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
 .icon-text { gap: 7px; }
 .hot, .primary {
   border: 0;
@@ -304,6 +312,27 @@ textarea { resize: vertical; line-height: 1.7; }
 .auth-page, .admin-page { max-width: 840px; }
 .auth-card { max-width: 430px; margin: 8vh auto; padding: 28px; display: grid; gap: 12px; }
 .auth-card h1 { margin: 0 0 8px; font-size: 2.4rem; }
+.oauth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #8ba3b5;
+  font-size: .86rem;
+}
+.oauth-divider::before, .oauth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,.12);
+}
+.github-login {
+  min-height: 48px;
+  justify-content: center;
+  gap: 9px;
+  color: #edf5ff;
+  background: rgba(255,255,255,.08);
+}
+.github-login:hover { background: rgba(255,255,255,.13); }
 .link { border: 0; background: transparent; color: #79f3df; }
 .stats {
   display: grid;
