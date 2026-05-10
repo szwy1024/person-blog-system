@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, jsonify, request
 
 from inference import ModelNotReady, create_predictor
@@ -26,7 +28,9 @@ def health():
     return jsonify({
         'ok': predictor is not None,
         'modelLoaded': predictor is not None,
+        'configuredModel': os.getenv('MODEL_TYPE', 'bilstm'),
         'engine': predictor.name if predictor else None,
+        'device': os.getenv('TORCH_DEVICE', 'cpu'),
         'error': startup_error,
     }), 200 if predictor else 503
 
@@ -61,7 +65,9 @@ def reload_model():
     return jsonify({
         'ok': predictor is not None,
         'modelLoaded': predictor is not None,
+        'configuredModel': os.getenv('MODEL_TYPE', 'bilstm'),
         'engine': predictor.name if predictor else None,
+        'device': os.getenv('TORCH_DEVICE', 'cpu'),
         'error': startup_error,
     }), 200 if predictor else 503
 

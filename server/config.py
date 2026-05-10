@@ -46,4 +46,5 @@ class Config:
     GITHUB_CLIENT_SECRET = env('GITHUB_CLIENT_SECRET', '')
     GITHUB_REDIRECT_URI = env('GITHUB_REDIRECT_URI', 'http://127.0.0.1:8000/api/auth/github/callback')
     GITHUB_OAUTH_SCOPE = env('GITHUB_OAUTH_SCOPE', 'read:user user:email')
+    MODEL_TYPE = env('MODEL_TYPE', '')
     SENTIMENT_SERVICE_URL = env('SENTIMENT_SERVICE_URL', '')

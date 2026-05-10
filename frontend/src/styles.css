@@ -126,7 +126,31 @@ main {
 }
 
 .hero-actions { gap: 12px; margin-top: 28px; flex-wrap: wrap; }
-.hero-actions .primary, .comment-editor .primary, .editor .primary { display: inline-flex; gap: 8px; align-items: center; }
+.hero-actions .primary, .hero-actions .ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  gap: 11px;
+  padding: 12px 18px;
+  border-radius: 24px;
+  font-weight: 850;
+}
+.hero-actions svg {
+  width: 22px;
+  height: 22px;
+  box-sizing: content-box;
+  flex: none;
+  padding: 6px;
+  border-radius: 13px;
+  color: #101418;
+  stroke-width: 2.35;
+}
+.hero-actions .primary svg { background: rgba(255,255,255,.26); }
+.hero-actions .ghost svg {
+  background: linear-gradient(135deg, #13d5c3, #f4c15d 52%, #ff6b9f);
+}
+.comment-editor .primary, .editor .primary { display: inline-flex; gap: 8px; align-items: center; }
 
 .owner-panel, .auth-card, .editor, .article, .comments {
   border: 1px solid rgba(255,255,255,.14);
@@ -336,7 +360,7 @@ textarea { resize: vertical; line-height: 1.7; }
 .link { border: 0; background: transparent; color: #79f3df; }
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 14px;
 }
 .stats div {
@@ -347,6 +371,34 @@ textarea { resize: vertical; line-height: 1.7; }
 }
 .stats span { color: #8ba3b5; }
 .stats strong { display: block; margin-top: 8px; font-size: 2rem; }
+.model-stat {
+  grid-column: span 2;
+  min-width: 0;
+}
+.model-stat span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.model-stat strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.model-stat small, .model-stat em {
+  display: block;
+  margin-top: 7px;
+  color: #b7c6d3;
+  font-style: normal;
+  line-height: 1.45;
+}
+.model-stat[data-status="running"] {
+  border-color: rgba(121,243,223,.42);
+  background: linear-gradient(135deg, rgba(19,213,195,.18), rgba(255,255,255,.08));
+}
+.model-stat[data-status="unavailable"] {
+  border-color: rgba(255,155,185,.45);
+  background: linear-gradient(135deg, rgba(255,107,159,.16), rgba(255,255,255,.08));
+}
 .editor { margin-top: 20px; padding: 24px; display: grid; gap: 12px; }
 .switch-row { gap: 20px; color: #b7c6d3; }
 .switch-row input { width: auto; margin-right: 8px; }

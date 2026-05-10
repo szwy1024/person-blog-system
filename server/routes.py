@@ -8,7 +8,7 @@ from sqlalchemy import or_
 
 from server.extensions import db
 from server.models import Blog, BlogComment, BlogType, CommentSentiment, Role, States, ThirdParty, User
-from server.sentiment import dump_raw, predict_sentiment
+from server.sentiment import dump_raw, get_model_status, predict_sentiment
 
 
 api = Blueprint('api', __name__)
@@ -375,7 +375,8 @@ def admin_stats():
         'blogs': Blog.query.count(),
         'comments': BlogComment.query.filter_by(delete_flag=0).count(),
         'users': User.query.count(),
-        'categories': BlogType.query.count()
+        'categories': BlogType.query.count(),
+        'sentimentModel': get_model_status()
     })
 
 

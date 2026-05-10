@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  ArrowLeft, BarChart3, Github, LogIn, LogOut, Mail, MessageCircle,
+  ArrowLeft, BarChart3, BrainCircuit, Github, LogIn, LogOut, Mail, MessageCircle,
   PenLine, Plus, Search, Sparkles, UserRound
 } from 'lucide-vue-next'
 import { api } from './api'
@@ -23,6 +23,17 @@ const stats = ref(null)
 
 const isAdmin = computed(() => user.value?.role === 'ADMIN')
 const activeCategory = computed(() => categories.value.find(item => String(item.id) === String(query.category)))
+const modelStatusText = computed(() => {
+  const model = stats.value?.sentimentModel
+  if (!model) return '未检测'
+  if (model.mode === 'fallback') return '本地词典降级'
+  if (model.modelLoaded) return '模型服务运行中'
+  return '模型未加载'
+})
+const modelEngineName = computed(() => {
+  const model = stats.value?.sentimentModel
+  return model?.engine || model?.configuredModel || 'unknown'
+})
 
 function showError(error) {
   message.value = error.message || '操作失败'
@@ -308,6 +319,15 @@ onMounted(async () => {
         <div><span>评论</span><strong>{{ stats?.comments || 0 }}</strong></div>
         <div><span>用户</span><strong>{{ stats?.users || 0 }}</strong></div>
         <div><span>分类</span><strong>{{ stats?.categories || 0 }}</strong></div>
+        <div class="model-stat" :data-status="stats?.sentimentModel?.status || 'unknown'">
+          <span><BrainCircuit :size="16" />当前推理模型</span>
+          <strong>{{ modelEngineName }}</strong>
+          <small>{{ modelStatusText }}<template v-if="stats?.sentimentModel?.device"> / {{ stats.sentimentModel.device }}</template></small>
+          <em v-if="stats?.sentimentModel?.configuredModel && stats.sentimentModel.configuredModel !== modelEngineName">
+            配置：{{ stats.sentimentModel.configuredModel }}
+          </em>
+          <em v-if="stats?.sentimentModel?.message">{{ stats.sentimentModel.message }}</em>
+        </div>
       </section>
       <section class="editor">
         <div class="section-title">

@@ -1,4 +1,5 @@
 import json
+from urllib.parse import urlparse, urlunparse
 
 import requests
 from flask import current_app
@@ -74,6 +75,55 @@ def predict_sentiment(text):
             fallback['raw'] = {'engine': 'local-lexicon', 'fallbackReason': str(exc)}
             return fallback
     return local_predict(text)
+
+
+def service_health_url(service_url):
+    parsed = urlparse(service_url)
+    if not parsed.scheme or not parsed.netloc:
+        return ''
+    return urlunparse((parsed.scheme, parsed.netloc, '/health', '', '', ''))
+
+
+def get_model_status():
+    service_url = current_app.config.get('SENTIMENT_SERVICE_URL')
+    configured_model = current_app.config.get('MODEL_TYPE') or ''
+    if not service_url:
+        return {
+            'engine': 'local-lexicon',
+            'configuredModel': configured_model or 'local-lexicon',
+            'modelLoaded': True,
+            'mode': 'local',
+            'status': 'running',
+            'message': '未配置模型服务，当前使用本地词典规则推理'
+        }
+
+    health_url = service_health_url(service_url)
+    try:
+        response = requests.get(health_url, timeout=1.5)
+        payload = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+        engine = payload.get('engine') or payload.get('configuredModel') or configured_model or 'unknown'
+        return {
+            'engine': engine,
+            'configuredModel': payload.get('configuredModel') or configured_model or engine,
+            'modelLoaded': bool(payload.get('modelLoaded')),
+            'mode': 'service' if response.ok and payload.get('modelLoaded') else 'fallback',
+            'status': 'running' if response.ok and payload.get('modelLoaded') else 'unavailable',
+            'device': payload.get('device') or '',
+            'serviceUrl': service_url,
+            'healthUrl': health_url,
+            'message': payload.get('error') or ('模型服务运行中' if response.ok else '模型服务不可用，评论推理将降级为本地词典规则')
+        }
+    except Exception as exc:
+        return {
+            'engine': 'local-lexicon',
+            'configuredModel': configured_model or 'unknown',
+            'modelLoaded': False,
+            'mode': 'fallback',
+            'status': 'unavailable',
+            'serviceUrl': service_url,
+            'healthUrl': health_url,
+            'message': '模型服务连接失败，评论推理将降级为本地词典规则: {}'.format(exc)
+        }
 
 
 def dump_raw(value):
